@@ -12,6 +12,8 @@ $ make install
 
 ### Usage
 
+To run any module
+
 ```bash
-$ make run
+$ poetry run python -m utils.utils
 ```

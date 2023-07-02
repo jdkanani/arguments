@@ -4,9 +4,15 @@ version = "0.1.0"
 description = ""
 authors = ["Jaynti Kanani <jdkanani@gmail.com>"]
 readme = "README.md"
+packages = [
+    {include = "finitefield", from = "src"},
+    {include = "arguments", from = "src"},
+    {include = "utils", from = "src"},
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
+py-ecc = "^6.0.0"
 
 
 [build-system]
