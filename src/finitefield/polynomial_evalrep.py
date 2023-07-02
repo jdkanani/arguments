@@ -1,15 +1,15 @@
-#| # Evaluation Representation of Polynomials and FFT optimizations
-#| In addition to the coefficient-based representation of polynomials used
-#| in babysnark.py, for performance we will also use an alternative
-#| representation where the polynomial is evaluated at a fixed set of points.
-#| Some operations, like multiplication and division, are significantly more
-#| efficient in this form.
-#| We can use FFT-based tools for efficiently converting
-#| between coefficient and evaluation representation.
-#|
-#| This library provides:
-#|  - Fast fourier transform for finite fields
-#|  - Interpolation and evaluation using FFT
+# | # Evaluation Representation of Polynomials and FFT optimizations
+# | In addition to the coefficient-based representation of polynomials used
+# | in babysnark.py, for performance we will also use an alternative
+# | representation where the polynomial is evaluated at a fixed set of points.
+# | Some operations, like multiplication and division, are significantly more
+# | efficient in this form.
+# | We can use FFT-based tools for efficiently converting
+# | between coefficient and evaluation representation.
+# |
+# | This library provides:
+# |  - Fast fourier transform for finite fields
+# |  - Interpolation and evaluation using FFT
 
 from .finitefield import FiniteField
 from .polynomial import polynomialsOver
@@ -19,7 +19,8 @@ import random
 from functools import reduce
 import numpy as np
 
-#| ## Choosing roots of unity
+
+# | ## Choosing roots of unity
 def get_omega(field, n, seed=None):
     """
     Given a field, this method returns an n^th root of unity.
@@ -30,7 +31,7 @@ def get_omega(field, n, seed=None):
     """
     rnd = random.Random(seed)
     assert n & n - 1 == 0, "n must be a power of 2"
-    x = field(rnd.randint(0, field.p-1))
+    x = field(rnd.randint(0, field.p - 1))
     y = pow(x, (field.p - 1) // n)
     if y == 1 or pow(y, n // 2) == 1:
         return get_omega(field, n)
@@ -38,7 +39,8 @@ def get_omega(field, n, seed=None):
     assert pow(y, n // 2) != 1, "omega must be primitive 2n'th root of unity"
     return y
 
-#| ## Fast Fourier Transform on Finite Fields
+
+# | ## Fast Fourier Transform on Finite Fields
 def fft_helper(a, omega, field):
     """
     Given coefficients A of polynomial this method does FFT and returns
@@ -63,7 +65,7 @@ def fft_helper(a, omega, field):
     return a_bar
 
 
-#| ## Representing a polynomial by evaluation at fixed points
+# | ## Representing a polynomial by evaluation at fixed points
 @memoize
 def polynomialsEvalRep(field, omega, n):
     assert n & n - 1 == 0, "n must be a power of 2"
@@ -71,14 +73,13 @@ def polynomialsEvalRep(field, omega, n):
     # Check that omega is an n'th primitive root of unity
     assert type(omega) is field
     omega = field(omega)
-    assert omega**(n) == 1
+    assert omega ** (n) == 1
     _powers = [omega**i for i in range(n)]
     assert len(set(_powers)) == n
 
     _poly_coeff = polynomialsOver(field)
 
     class PolynomialEvalRep(object):
-
         def __init__(self, xs, ys):
             # Each element of xs must be a power of omega.
             # There must be a corresponding y for every x.
@@ -87,7 +88,7 @@ def polynomialsEvalRep(field, omega, n):
             if type(ys) is not tuple:
                 ys = tuple(ys)
 
-            assert len(xs) <= n+1
+            assert len(xs) <= n + 1
             assert len(xs) == len(ys)
             for x in xs:
                 assert x in _powers
@@ -100,7 +101,9 @@ def polynomialsEvalRep(field, omega, n):
         def from_coeffs(cls, poly):
             assert type(poly) is _poly_coeff
             assert poly.degree() <= n
-            padded_coeffs = poly.coefficients + [field(0)] * (n - len(poly.coefficients))
+            padded_coeffs = poly.coefficients + [field(0)] * (
+                n - len(poly.coefficients)
+            )
             ys = fft_helper(padded_coeffs, omega, field)
             xs = [omega**i for i in range(n) if ys[i] != 0]
             ys = [y for y in ys if y != 0]
@@ -115,6 +118,7 @@ def polynomialsEvalRep(field, omega, n):
             return _poly_coeff(coeffs)
 
         _lagrange_cache = {}
+
         def __call__(self, x):
             if type(x) is int:
                 x = field(x)
@@ -123,14 +127,14 @@ def polynomialsEvalRep(field, omega, n):
 
             def lagrange(x, xi):
                 # Let's cache lagrange values
-                if (x,xi) in PolynomialEvalRep._lagrange_cache:
-                    return PolynomialEvalRep._lagrange_cache[(x,xi)]
+                if (x, xi) in PolynomialEvalRep._lagrange_cache:
+                    return PolynomialEvalRep._lagrange_cache[(x, xi)]
 
-                mul = lambda a,b: a*b
-                num = reduce(mul, [x  - xj for xj in xs if xj != xi], field(1))
+                mul = lambda a, b: a * b
+                num = reduce(mul, [x - xj for xj in xs if xj != xi], field(1))
                 den = reduce(mul, [xi - xj for xj in xs if xj != xi], field(1))
-                PolynomialEvalRep._lagrange_cache[(x,xi)] = num / den
-                return PolynomialEvalRep._lagrange_cache[(x,xi)]
+                PolynomialEvalRep._lagrange_cache[(x, xi)] = num / den
+                return PolynomialEvalRep._lagrange_cache[(x, xi)]
 
             y = field(0)
             for xi, yi in self.evalmap.items():
@@ -142,8 +146,9 @@ def polynomialsEvalRep(field, omega, n):
             if type(other) is int:
                 other = field(other)
             if type(other) is field:
-                return PolynomialEvalRep(self.evalmap.keys(),
-                                         [other * y for y in self.evalmap.values()])
+                return PolynomialEvalRep(
+                    self.evalmap.keys(), [other * y for y in self.evalmap.values()]
+                )
 
             # Multiply another polynomial in the same representation
             if type(other) is type(self):
@@ -173,18 +178,22 @@ def polynomialsEvalRep(field, omega, n):
             res += other
             return res
 
-        def __sub__(self, other): return self + (-other)
-        def __neg__(self): return PolynomialEvalRep(self.evalmap.keys(),
-                                                    [-y for y in self.evalmap.values()])
+        def __sub__(self, other):
+            return self + (-other)
+
+        def __neg__(self):
+            return PolynomialEvalRep(
+                self.evalmap.keys(), [-y for y in self.evalmap.values()]
+            )
 
         def __truediv__(self, divisor):
             # Scale by integer
             if type(divisor) is int:
                 other = field(divisor)
             if type(divisor) is field:
-                return self * (1/divisor)
+                return self * (1 / divisor)
             if type(divisor) is type(self):
-                res = PolynomialEvalRep((),())
+                res = PolynomialEvalRep((), ())
                 for x, y in self.evalmap.items():
                     assert x in divisor.evalmap
                     res.evalmap[x] = y / divisor.evalmap[x]
@@ -195,7 +204,9 @@ def polynomialsEvalRep(field, omega, n):
             return PolynomialEvalRep(self.evalmap.keys(), self.evalmap.values())
 
         def __repr__(self):
-            return f'PolyEvalRep[{hex(omega.n)[:15]}...,{n}]({len(self.evalmap)} elements)'
+            return (
+                f"PolyEvalRep[{hex(omega.n)[:15]}...,{n}]({len(self.evalmap)} elements)"
+            )
 
         @classmethod
         def divideWithCoset(cls, p, t, c=field(3)):
@@ -218,12 +229,12 @@ def polynomialsEvalRep(field, omega, n):
             c_acc = field(1)
             pc = _poly_coeff(list(p.coefficients))  # make a copy
             for i in range(p.degree() + 1):
-                pc.coefficients[-i-1] *= c_acc
+                pc.coefficients[-i - 1] *= c_acc
                 c_acc *= c
             c_acc = field(1)
             tc = _poly_coeff(list(t.coefficients))  # make a copy
             for i in range(t.degree() + 1):
-                tc.coefficients[-i-1] *= c_acc
+                tc.coefficients[-i - 1] *= c_acc
                 c_acc *= c
 
             # Divide using evalrep
@@ -236,7 +247,7 @@ def polynomialsEvalRep(field, omega, n):
             c_acc = field(1)
             h = _poly_coeff(list(hc.coefficients))  # make a copy
             for i in range(hc.degree() + 1):
-                h.coefficients[-i-1] /= c_acc
+                h.coefficients[-i - 1] /= c_acc
                 c_acc *= c
 
             # Correctness checks
@@ -244,17 +255,18 @@ def polynomialsEvalRep(field, omega, n):
             # assert p == t * h
             return h
 
-
     return PolynomialEvalRep
 
-#| ## Sparse Matrix
-#| In our setting, we have O(m*m) elements in the matrix, and expect the number of
-#| elements to be O(m).
-#| In this setting, it's appropriate to use a rowdict representation - a dense
-#| array of dictionaries, one for each row, where the keys of each dictionary
-#| are column indices.
 
-class RowDictSparseMatrix():
+# | ## Sparse Matrix
+# | In our setting, we have O(m*m) elements in the matrix, and expect the number of
+# | elements to be O(m).
+# | In this setting, it's appropriate to use a rowdict representation - a dense
+# | array of dictionaries, one for each row, where the keys of each dictionary
+# | are column indices.
+
+
+class RowDictSparseMatrix:
     # Only a few necessary methods are included here.
     # This could be replaced with a generic sparse matrix class, such as scipy.sparse,
     # but this does not work as well with custom value types like Fp
@@ -262,7 +274,7 @@ class RowDictSparseMatrix():
     def __init__(self, m, n, zero=None):
         self.m = m
         self.n = n
-        self.shape = (m,n)
+        self.shape = (m, n)
         self.zero = zero
         self.rowdicts = [dict() for _ in range(m)]
 
@@ -277,13 +289,13 @@ class RowDictSparseMatrix():
     def items(self):
         for i in range(self.m):
             for j, v in self.rowdicts[i].items():
-                yield (i,j), v
+                yield (i, j), v
 
     def dot(self, other):
         if isinstance(other, np.ndarray):
-            assert other.dtype == 'O'
-            assert other.shape in ((self.n,),(self.n,1))
-            ret = np.empty((self.m,), dtype='O')
+            assert other.dtype == "O"
+            assert other.shape in ((self.n,), (self.n, 1))
+            ret = np.empty((self.m,), dtype="O")
             ret.fill(self.zero)
             for i in range(self.m):
                 for j, v in self.rowdicts[i].items():
@@ -291,25 +303,29 @@ class RowDictSparseMatrix():
             return ret
 
     def to_dense(self):
-        mat = np.empty((self.m, self.n), dtype='O')
+        mat = np.empty((self.m, self.n), dtype="O")
         mat.fill(self.zero)
-        for (i,j), val in self.items():
-            mat[i,j] = val
+        for (i, j), val in self.items():
+            mat[i, j] = val
         return mat
 
-    def __repr__(self): return repr(self.rowdicts)
+    def __repr__(self):
+        return repr(self.rowdicts)
 
-#-
+
+# -
 # Examples
-if __name__ == '__main__':
-    Fp = FiniteField(52435875175126190479447740508185965837690552500527637822603658699938581184513,1)  # (# noqa: E501)
+if __name__ == "__main__":
+    Fp = FiniteField(
+        52435875175126190479447740508185965837690552500527637822603658699938581184513, 1
+    )  # (# noqa: E501)
     Poly = polynomialsOver(Fp)
 
     n = 8
     omega = get_omega(Fp, n)
     PolyEvalRep = polynomialsEvalRep(Fp, omega, n)
 
-    f = Poly([1,2,3,4,5])
+    f = Poly([1, 2, 3, 4, 5])
     xs = tuple([omega**i for i in range(n)])
     ys = tuple(map(f, xs))
     # print('xs:', xs)

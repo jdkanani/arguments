@@ -1,4 +1,3 @@
-
 # a general Euclidean algorithm for any number type with
 # a divmod and a valuation abs() whose minimum value is zero
 def gcd(a, b):

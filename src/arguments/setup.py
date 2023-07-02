@@ -18,18 +18,47 @@ GT = Group.GT
 # | This follows because for the ssbls12-381 exponent field Fp, we have
 # |    2^32 divides (p - 1).
 
-omega_base = get_omega(Fp, 2 ** 32, seed=0)
+omega_base = get_omega(Fp, 2**32, seed=0)
+
 
 def random_fp():
-    return Fp(random.randint(0, Fp.p-1))
+    return Fp(random.randint(0, Fp.p - 1))
 
-def setup_algo(gates_matrix, permutation, L, p_i):
+
+# Generate CRS using tau and returns them
+def generate_CRS(n):
+    tau = random_fp()
+    CRS = [G * (tau**i) for i in range(n + 3)]
+    return tau, CRS
+
+
+# Evaluate a polynomial in exponent
+def evaluate_in_exponent(powers_of_tau, poly):
+    # powers_of_tau:
+    #    [G*0, G*tau, ...., G*(tau**m)]
+    # poly:
+    #    degree-m bound polynomial in coefficient form
+    # print('P.degree:', poly.degree())
+    # print('taus:', len(powers_of_tau))
+    assert poly.degree() + 1 < len(powers_of_tau)
+    return sum(
+        [powers_of_tau[i] * poly.coefficients[i] for i in range(poly.degree() + 1)],
+        G * 0,
+    )
+
+
+############################
+# PLONK related setup
+############################
+
+
+def setup_for_plonk(gates_matrix, permutation, L, p_i):
     print("Starting Setup Phase...")
     (m, n) = gates_matrix.shape
 
     assert n & n - 1 == 0, "n must be a power of 2"
-    omega = omega_base ** (2 ** 32 // n)
-    ROOTS = [omega ** i for i in range(n)]
+    omega = omega_base ** (2**32 // n)
+    ROOTS = [omega**i for i in range(n)]
 
     PolyEvalRep = polynomialsEvalRep(Fp, omega, n)
 
@@ -58,8 +87,8 @@ def setup_algo(gates_matrix, permutation, L, p_i):
     # We permute the positions of the domain generated above
     perm_domain = [id_domain[i - 1] for i in permutation]
     perm_domain_a = perm_domain[:n]
-    perm_domain_b = perm_domain[n: 2*n]
-    perm_domain_c = perm_domain[2*n:3*n]
+    perm_domain_b = perm_domain[n : 2 * n]
+    perm_domain_c = perm_domain[2 * n : 3 * n]
 
     # Generate polynomials that return the permuted index when evaluated on the
     # domain
@@ -71,8 +100,7 @@ def setup_algo(gates_matrix, permutation, L, p_i):
     perm_precomp = [id_domain, perm_domain, k, Ss]
 
     # We perform the trusted setup
-    tau = random_fp()
-    CRS = [G * (tau ** i) for i in range(n + 3)]
+    tau, CRS = generate_CRS(n)
 
     # We take some work off the shoulders of the verifier
     print("Starting Verifier Preprocessing...")
@@ -83,16 +111,3 @@ def setup_algo(gates_matrix, permutation, L, p_i):
     print("Setup Phase Finished!")
 
     return CRS, Qs, p_i_poly, perm_precomp, verifier_preprocessing
-
-
-# Evaluate a polynomial in exponent
-def evaluate_in_exponent(powers_of_tau, poly):
-    # powers_of_tau:
-    #    [G*0, G*tau, ...., G*(tau**m)]
-    # poly:
-    #    degree-m bound polynomial in coefficient form
-    # print('P.degree:', poly.degree())
-    # print('taus:', len(powers_of_tau))
-    assert poly.degree()+1 < len(powers_of_tau)
-    return sum([powers_of_tau[i] * poly.coefficients[i] for i in
-                range(poly.degree()+1)], G*0)

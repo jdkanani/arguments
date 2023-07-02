@@ -12,7 +12,10 @@ Fp = FiniteField(
 )  # (# noqa: E501)
 
 Poly = polynomialsOver(Fp)
-Fp.__repr__ = lambda self: hex(self.n)[:15] + "..." if len(hex(self.n))>=15 else hex(self.n)
+Fp.__repr__ = (
+    lambda self: hex(self.n)[:15] + "..." if len(hex(self.n)) >= 15 else hex(self.n)
+)
+
 
 class SS_BLS12_381:
     def __init__(self, m1, m2):
