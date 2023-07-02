@@ -1,10 +1,8 @@
 from py_ecc import optimized_bls12_381 as bls12_381
 from py_ecc.optimized_bls12_381 import FQ, FQ2, FQ12, G1, G2, add, neg, multiply, eq
 
-import sys
 from finitefield.finitefield import FiniteField
 from finitefield.polynomial import polynomialsOver
-from finitefield.euclidean import extendedEuclideanAlgorithm
 
 from functools import reduce
 
@@ -57,5 +55,3 @@ class SS_BLS12_381:
 SS_BLS12_381.G = SS_BLS12_381(bls12_381.G1, bls12_381.G2)
 SS_BLS12_381.GT = SS_BLS12_381.G.pair(SS_BLS12_381.G)
 Group = SS_BLS12_381
-
-
