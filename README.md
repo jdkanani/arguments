@@ -17,3 +17,9 @@ To run any module
 ```bash
 $ poetry run python -m utils.utils
 ```
+
+To test kate (KZG) commitment
+
+```bash
+$ poetry run python -m arguments.pcs.kzg
+```
