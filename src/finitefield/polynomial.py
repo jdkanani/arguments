@@ -160,13 +160,6 @@ def polynomialsOver(field=fractions.Fraction):
         # Interpolating using lagrange polynomials
         _lagrange_cache = {}
 
-        def eval(self, x):
-            # Fastest way to evaluate polynomial at x using horner's method
-            y = self.coefficients[0]
-            for c in self.coefficients[1:]:
-                y = y * x + c
-            return y
-
         @classmethod
         def interpolate(cls, xs, ys):
             xs_hash = hash(tuple(xi.n for xi in xs))
