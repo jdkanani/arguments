@@ -6,15 +6,44 @@ from finitefield.polynomial import polynomialsOver
 
 from functools import reduce
 
+# Generatore for the field
+PRIMITIVE_ROOT = 5
+MODULUS = 52435875175126190479447740508185965837690552500527637822603658699938581184513
+# Modulus checks
+assert pow(PRIMITIVE_ROOT, (MODULUS - 1) // 2, MODULUS) != 1
+assert pow(PRIMITIVE_ROOT, MODULUS - 1, MODULUS) == 1
+
+
+def get_root_of_unity(order):
+    """
+    Returns a root of unity of order "order"
+    """
+    assert (MODULUS - 1) % order == 0
+    return pow(PRIMITIVE_ROOT, (MODULUS - 1) // order, MODULUS)
+
+
 # BLS12_381 group order
-Fp = FiniteField(
-    52435875175126190479447740508185965837690552500527637822603658699938581184513, 1
-)  # (# noqa: E501)
+Fp = FiniteField(MODULUS, 1)  # (# noqa: E501)
 
 Poly = polynomialsOver(Fp)
 Fp.__repr__ = (
     lambda self: hex(self.n)[:15] + "..." if len(hex(self.n)) >= 15 else hex(self.n)
 )
+
+
+def eval_poly(poly, domain, shift=Fp(1)):
+    poly_coeff = poly.to_coeffs()
+    eval = []
+    for j in range(len(domain)):
+        eval += [
+            sum(
+                [
+                    (domain[j] * shift) ** i * poly_coeff.coefficients[i]
+                    for i in range(poly_coeff.degree() + 1)
+                ]
+            )
+        ]
+    return eval
 
 
 class SS_BLS12_381:
@@ -32,6 +61,9 @@ class SS_BLS12_381:
     def __add__(self, other):
         assert type(other) is SS_BLS12_381
         return SS_BLS12_381(add(self.m1, other.m1), add(self.m2, other.m2))
+
+    def __neg__(self):
+        return SS_BLS12_381(neg(self.m1), neg(self.m2))
 
     def __mul__(self, x):
         assert type(x) in (int, Fp)
