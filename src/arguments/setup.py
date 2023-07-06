@@ -25,11 +25,38 @@ def random_fp():
     return Fp(random.randint(0, Fp.p - 1))
 
 
+def random_fp_seeded(seeded):
+    random.seed(seeded)
+    return Fp(random.randint(0, Fp.p - 1))
+
+
 # Generate CRS using tau and returns them
 def generate_CRS(n):
     tau = random_fp()
     CRS = [G * (tau**i) for i in range(n + 3)]
     return tau, CRS
+
+
+def vanishing_poly(n): # degree = 8, coeffs = [1, 0, 0, 0, 0, 0, 0, 0, -1] = x^8 - 1
+    # For the special case of evaluating at all n powers of omega,
+    # the vanishing poly has a special form.
+    #  t(X) = (X-omega^0)(X-omega^1)....(X-omega^(n-1)) = X^n - 1
+    return Poly([Fp(-1)] + [Fp(0)] * (n - 1) + [Fp(1)])
+
+
+def eval_poly(poly, domain, shift=Fp(1)):
+    poly_coeff = poly.to_coeffs()
+    eval = []
+    for j in range(len(domain)):
+        eval += [
+            sum(
+                [
+                    (domain[j] * shift) ** i * poly_coeff.coefficients[i]
+                    for i in range(poly_coeff.degree() + 1)
+                ]
+            )
+        ]
+    return eval
 
 
 # Evaluate a polynomial in exponent

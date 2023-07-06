@@ -31,21 +31,6 @@ Fp.__repr__ = (
 )
 
 
-def eval_poly(poly, domain, shift=Fp(1)):
-    poly_coeff = poly.to_coeffs()
-    eval = []
-    for j in range(len(domain)):
-        eval += [
-            sum(
-                [
-                    (domain[j] * shift) ** i * poly_coeff.coefficients[i]
-                    for i in range(poly_coeff.degree() + 1)
-                ]
-            )
-        ]
-    return eval
-
-
 class SS_BLS12_381:
     def __init__(self, m1, m2):
         self.m1 = m1
