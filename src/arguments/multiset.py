@@ -54,8 +54,10 @@ def prove():
 
     # get gamma from verifier after commiting to xsp and ysp
     gamma = random_fp()
-    gamma_poly = PolyEvalRep.from_coeffs(Poly([gamma]))
+    gamma_poly = PolyEvalRep2.from_coeffs(Poly([gamma]))
     L_1 = PolyEvalRep(ROOTS, [Fp(1)] + [Fp(0) for i in range(len(ROOTS) - 1)])
+    L_1_ext = PolyEvalRep2.from_coeffs(L_1.to_coeffs())
+    ONE = PolyEvalRep2.from_coeffs(Poly([Fp(1)]))
 
     # create polynomial from points
     xsp = PolyEvalRep(ROOTS, xs)
@@ -68,31 +70,32 @@ def prove():
 
     # create accumulator polynomial using accumulator evaluations
     accumulator_poly = PolyEvalRep(ROOTS, accumulator_poly_eval)
-    accumulator_poly_shift_evals = eval_poly(accumulator_poly, ROOTS, ROOTS[1])
-    accumulator_poly_shift = PolyEvalRep(ROOTS, accumulator_poly_shift_evals)
+
+    # shift accumulator polynomial to 2n points
+    accumulator_poly = PolyEvalRep2.from_coeffs(accumulator_poly.to_coeffs())
+    accumulator_poly_shift_evals = eval_poly(accumulator_poly, ROOTS2, ROOTS[1])
+    accumulator_poly_shift = PolyEvalRep2(ROOTS2, accumulator_poly_shift_evals)
+
+    # extend accumulator polynomial to 2n points
+    xsp_ext = PolyEvalRep2.from_coeffs(xsp.to_coeffs())
+    ysp_ext = PolyEvalRep2.from_coeffs(ysp.to_coeffs())
+
+    # create linear combination of constraint polynomials
+    alpha = random_fp_seeded("alpha")
 
     # (f(x) + gamma) * Z(x)
-    fz = (xsp + gamma_poly) * accumulator_poly
+    fz = (xsp_ext + gamma_poly) * accumulator_poly
     # (g(x) + gamma) * Z(xw)
-    qz = (ysp + gamma_poly) * accumulator_poly_shift
+    qz = (ysp_ext + gamma_poly) * accumulator_poly_shift
 
-    print("fz ==>", fz.to_coeffs().coefficients)
-    print("qz ==>", qz.to_coeffs().coefficients)
+    # tz = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) + α^2 (L1(x) * (Z(x) - 1)))
+    tz =  ((fz - qz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha ** 2)
+ 
+    # Now, we want to check if tz is zero at all points in roots of unity (all of omegas)
+    # It means that it must be divisible by vanishing polynomial
+    # q = tz / ZH = ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) / ZH(x)
 
-    # quotient polynomial
-    # ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) / ZH(x)
-    # tz = (fz - qz)
-    # print("tz.to_coeffs() ==>", tz.to_coeffs().coefficients)
-
-
-    # print(accumulator_poly.to_coeffs().coefficients)
-    # print(accumulator_poly_shift.to_coeffs().coefficients)
-    # print("ZH_coeffs", ZH_coeffs)
-    # print("fz ==>", fz.to_coeffs().coefficients)
-    # print("qz ==>", qz.to_coeffs().coefficients)
-    # print("fz ==>", PolyEvalRep.divideWithCoset(fz.to_coeffs(), ZH_coeffs).coefficients)
-    # print("ZH_coeffs ==>", ZH_coeffs)
-    # tz = PolyEvalRep.divideWithCoset(tz.to_coeffs(), ZH_coeffs)
+    q = PolyEvalRep2.divideWithCoset(tz.to_coeffs(), ZH_coeffs)
 
     # commit xsp, ysp, accumulator_poly
     # kzg = KZG(CRS)
