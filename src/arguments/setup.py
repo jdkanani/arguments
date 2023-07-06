@@ -37,7 +37,7 @@ def generate_CRS(n):
     return tau, CRS
 
 
-def vanishing_poly(n): # degree = 8, coeffs = [1, 0, 0, 0, 0, 0, 0, 0, -1] = x^8 - 1
+def vanishing_poly(n):  # degree = 8, coeffs = [1, 0, 0, 0, 0, 0, 0, 0, -1] = x^8 - 1
     # For the special case of evaluating at all n powers of omega,
     # the vanishing poly has a special form.
     #  t(X) = (X-omega^0)(X-omega^1)....(X-omega^(n-1)) = X^n - 1

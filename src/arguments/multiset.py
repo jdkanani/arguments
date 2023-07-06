@@ -8,7 +8,7 @@ from arguments.setup import (
     vanishing_poly,
     omega_base,
     polynomialsEvalRep,
-    eval_poly
+    eval_poly,
 )
 from utils.ssbls12 import Poly, Fp
 from arguments.pcs.kzg import KZG
@@ -89,8 +89,8 @@ def prove():
     qz = (ysp_ext + gamma_poly) * accumulator_poly_shift
 
     # tz = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) + α^2 (L1(x) * (Z(x) - 1)))
-    tz =  ((fz - qz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha ** 2)
- 
+    tz = ((fz - qz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha**2)
+
     # Now, we want to check if tz is zero at all points in roots of unity (all of omegas)
     # It means that it must be divisible by vanishing polynomial
     # q = tz / ZH = ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) / ZH(x)
