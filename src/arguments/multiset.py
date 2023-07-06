@@ -45,6 +45,9 @@ def prove():
     ROOTS = [omega**i for i in range(n)]
     ROOTS2 = [omega**i for i in range(n * 2)]
     PolyEvalRep = polynomialsEvalRep(Fp, omega, n)
+
+    # While multiplying polynomials, to maintain their degree we need to perform product in larger domain
+    # since we will be performing two n polynomial multiplication, we need to use 2n domain
     PolyEvalRep2 = polynomialsEvalRep(Fp, omega2, n * 2)
 
     # get vanishing polynomial
@@ -80,21 +83,21 @@ def prove():
     xsp_ext = PolyEvalRep2.from_coeffs(xsp.to_coeffs())
     ysp_ext = PolyEvalRep2.from_coeffs(ysp.to_coeffs())
 
-    # create linear combination of constraint polynomials
-    alpha = random_fp_seeded("alpha")
-
+    # This is where we need larger domain for product as we are multiplying f and Z (accumulator_poly)
     # (f(x) + gamma) * Z(x)
     fz = (xsp_ext + gamma_poly) * accumulator_poly
     # (g(x) + gamma) * Z(xw)
     qz = (ysp_ext + gamma_poly) * accumulator_poly_shift
+
+    # create linear combination of constraint polynomials
+    alpha = random_fp_seeded("alpha")
 
     # tz = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) + α^2 (L1(x) * (Z(x) - 1)))
     tz = ((fz - qz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha**2)
 
     # Now, we want to check if tz is zero at all points in roots of unity (all of omegas)
     # It means that it must be divisible by vanishing polynomial
-    # q = tz / ZH = ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) / ZH(x)
-
+    # q = tz / ZH
     q = PolyEvalRep2.divideWithCoset(tz.to_coeffs(), ZH_coeffs)
 
     # commit xsp, ysp, accumulator_poly
