@@ -180,8 +180,8 @@ def verify(proof, kzg):
     alpha = random_fp_seeded("alpha")
     zeta = random_fp_seeded("zeta")
 
-    # verify all opening proof at zeta
-    print("Verifying all opening proof at zeta")
+    # verify all opening proofs at zeta
+    print("Verifying all opening proofs at zeta")
     assert kzg.verify(proof["f"]["commitment"], proof["f"]["proof"], zeta, proof["f"]["zeta_value"])
     assert kzg.verify(proof["g"]["commitment"], proof["g"]["proof"], zeta, proof["g"]["zeta_value"])
     assert kzg.verify(proof["t"]["commitment"], proof["t"]["proof"], zeta, proof["t"]["zeta_value"])
