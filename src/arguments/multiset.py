@@ -167,22 +167,58 @@ def prove(kzg):
         accumulator_poly.to_coeffs(), zeta * ROOTS[1]
     )
 
-    # verify if -
+    print("Proof created")
+    return proof
+
+
+def verify(proof, kzg):
+    # polys represented with n points
+    omega = omega_base ** (2**32 // n)
+    ROOTS = [omega**i for i in range(n)]
+
+    gamma = random_fp_seeded("gamma")
+    alpha = random_fp_seeded("alpha")
+    zeta = random_fp_seeded("zeta")
+
+    # verify all opening proof at zeta
+    print("Verifying all opening proof at zeta")
+    assert kzg.verify(proof["f"]["commitment"], proof["f"]["proof"], zeta, proof["f"]["zeta_value"])
+    assert kzg.verify(proof["g"]["commitment"], proof["g"]["proof"], zeta, proof["g"]["zeta_value"])
+    assert kzg.verify(proof["t"]["commitment"], proof["t"]["proof"], zeta, proof["t"]["zeta_value"])
+    assert kzg.verify(proof["z"]["commitment"], proof["z"]["proof"], zeta, proof["z"]["zeta_value"])
+    assert kzg.verify(proof["z"]["commitment"], proof["z"]["shift_proof"], zeta * ROOTS[1], proof["z"]["shift_zeta_value"])
+
+    # get vanishing polynomial
+    ZH = vanishing_poly(n)
+
+    # evaluate vanishing polynomial at zeta
+    vanishing_poly_eval = ZH(zeta)
+
+    # evaluate L1 lagrange polynomial L1(x) = (x^n - 1) / (n * (x - 1)) at zeta
+    L_1_zeta = (zeta**n - Fp(1)) / (n * (zeta - Fp(1)))
+
+    # verify if
     # t * ZH == α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
     # at zeta (ζ)
     L1Constrainst = alpha**2 * (
         # L1(x) * (Z(x) - 1)
-        L_1.to_coeffs()(zeta)
+        L_1_zeta
         * (proof["z"]["zeta_value"] - Fp(1))
     )
+
     TransitionConstraint = alpha * (
         # (f(x) + gamma) * Z(x)
         (proof["f"]["zeta_value"] + gamma) * proof["z"]["zeta_value"]
         # (g(x) + gamma) * Z(xω)
         - (proof["g"]["zeta_value"] + gamma) * proof["z"]["shift_zeta_value"]
     )
+
+    print("Verifying all constraints at zeta")
     # t * ZH == α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
-    assert proof["t"]["zeta_value"] * ZH(zeta) == TransitionConstraint + L1Constrainst
+    return (
+        proof["t"]["zeta_value"] * vanishing_poly_eval
+        == TransitionConstraint + L1Constrainst
+    )
 
 
 if __name__ == "__main__":
@@ -197,3 +233,7 @@ if __name__ == "__main__":
 
     # create proof
     proof = prove(kzg)
+
+    # verify proof
+    assert verify(proof, kzg), "Verify proof: FAIL"
+    print("Verify proof: OK")
