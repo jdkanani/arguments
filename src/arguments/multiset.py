@@ -25,10 +25,8 @@ n = 8
 #
 
 xs = [Fp(i) * Fp(i) for i in range(1, n + 1)]
-print(xs)
 ys = xs.copy()
 random.shuffle(ys)
-print(ys)
 
 
 def accumulator_factor(i, xs, ys, gamma):
@@ -38,29 +36,32 @@ def accumulator_factor(i, xs, ys, gamma):
     return res
 
 
-def prove():
+def prove(kzg):
+    # proof object
+    proof = {}
+
     # polys represented with n points
     omega = omega_base ** (2**32 // n)
-    omega2 = omega_base ** (2**32 // (n * 2))
+    omega3 = omega_base ** (2**32 // (n * 8))
     ROOTS = [omega**i for i in range(n)]
-    ROOTS2 = [omega**i for i in range(n * 2)]
+    ROOTS3 = [omega3**i for i in range(n * 8)]
     PolyEvalRep = polynomialsEvalRep(Fp, omega, n)
 
     # While multiplying polynomials, to maintain their degree we need to perform product in larger domain
-    # since we will be performing two n polynomial multiplication, we need to use 2n domain
-    PolyEvalRep2 = polynomialsEvalRep(Fp, omega2, n * 2)
+    # since we will be performing three n polynomial multiplication, we need to use 3n domain
+    PolyEvalRep3 = polynomialsEvalRep(Fp, omega3, n * 8)
 
     # get vanishing polynomial
     ZH = vanishing_poly(n)
-    ZH_ext = PolyEvalRep2.from_coeffs(ZH)
+    ZH_ext = PolyEvalRep3.from_coeffs(ZH)
     ZH_coeffs = ZH_ext.to_coeffs()
 
-    # get gamma from verifier after commiting to xsp and ysp
-    gamma = random_fp()
-    gamma_poly = PolyEvalRep2.from_coeffs(Poly([gamma]))
+    # get gamma (γ) from verifier after commiting to xsp and ysp
+    gamma = random_fp_seeded("gamma")
+    gamma_poly = PolyEvalRep3.from_coeffs(Poly([gamma]))
     L_1 = PolyEvalRep(ROOTS, [Fp(1)] + [Fp(0) for i in range(len(ROOTS) - 1)])
-    L_1_ext = PolyEvalRep2.from_coeffs(L_1.to_coeffs())
-    ONE = PolyEvalRep2.from_coeffs(Poly([Fp(1)]))
+    L_1_ext = PolyEvalRep3.from_coeffs(L_1.to_coeffs())
+    ONE = PolyEvalRep3.from_coeffs(Poly([Fp(1)]))
 
     # create polynomial from points
     xsp = PolyEvalRep(ROOTS, xs)
@@ -73,49 +74,119 @@ def prove():
 
     # create accumulator polynomial using accumulator evaluations
     accumulator_poly = PolyEvalRep(ROOTS, accumulator_poly_eval)
+    # evaluate accumulator polynomial to 3n points
+    accumulator_poly = PolyEvalRep3.from_coeffs(accumulator_poly.to_coeffs())
+    # shift accumulator polynomial by ω for Z(xω)
+    accumulator_poly_shift_evals = eval_poly(accumulator_poly, ROOTS3, ROOTS[1])
+    accumulator_poly_shift = PolyEvalRep3(ROOTS3, accumulator_poly_shift_evals)
 
-    # shift accumulator polynomial to 2n points
-    accumulator_poly = PolyEvalRep2.from_coeffs(accumulator_poly.to_coeffs())
-    accumulator_poly_shift_evals = eval_poly(accumulator_poly, ROOTS2, ROOTS[1])
-    accumulator_poly_shift = PolyEvalRep2(ROOTS2, accumulator_poly_shift_evals)
+    # extend accumulator polynomial to 3n points
+    xsp_ext = PolyEvalRep3.from_coeffs(xsp.to_coeffs())
+    ysp_ext = PolyEvalRep3.from_coeffs(ysp.to_coeffs())
 
-    # extend accumulator polynomial to 2n points
-    xsp_ext = PolyEvalRep2.from_coeffs(xsp.to_coeffs())
-    ysp_ext = PolyEvalRep2.from_coeffs(ysp.to_coeffs())
+    # commit xsp (f), ysp (g), accumulator_poly (z)
+    proof["f"] = {"commitment": kzg.commit(xsp.to_coeffs())}
+    proof["g"] = {"commitment": kzg.commit(ysp.to_coeffs())}
+    proof["z"] = {"commitment": kzg.commit(accumulator_poly.to_coeffs())}
 
     # This is where we need larger domain for product as we are multiplying f and Z (accumulator_poly)
     # (f(x) + gamma) * Z(x)
     fz = (xsp_ext + gamma_poly) * accumulator_poly
-    # (g(x) + gamma) * Z(xw)
-    qz = (ysp_ext + gamma_poly) * accumulator_poly_shift
+    # (g(x) + gamma) * Z(xω)
+    gz = (ysp_ext + gamma_poly) * accumulator_poly_shift
 
     # There are two constraints
-    # 1. f(x) * Z(x) = g(x) * Z(xw) 
-    #       equivalent to 
-    #   f(x) * Z(x) - g(x) * Z(xw) = 0
+    # 1. f(x) * Z(x) = g(x) * Z(xω)
+    #       equivalent to
+    #   f(x) * Z(x) - g(x) * Z(xω) = 0
     # 2. L1(x) * (Z(x) - 1) = 0
-    # 
+    #
     # We will create linear combination of these two constraints
 
     # create random for linear combination of constraints
     alpha = random_fp_seeded("alpha")
 
-    # tz = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) + α^2 (L1(x) * (Z(x) - 1)))
-    tz = ((fz - qz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha**2)
+    # tz = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
+    tz = ((fz - gz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha**2)
 
-    # Now, we want to check if tz is zero at all points in roots of unity (all of omegas),
-    # it must be divisible by vanishing polynomial
-    # q = tz / ZH
-    q = PolyEvalRep2.divideWithCoset(tz.to_coeffs(), ZH_coeffs)
+    # Now, we want to check if tz is zero at all points in roots of unity (all of ω/Ω),
+    # it must be divisible by vanishing polynomial (this is similar to Round 3 of Plonk)
+    # t = tz / ZH
+    t = PolyEvalRep3.divideWithCoset(tz.to_coeffs(), ZH_coeffs)
+    t = PolyEvalRep3.from_coeffs(t)
 
-    # commit xsp, ysp, accumulator_poly
-    # kzg = KZG(CRS)
-    # commitment_xsp = kzg.commit(xsp)
-    # commitment_ysp = kzg.commit(ysp)
-    # commitment_accumulator_poly = kzg.commit(accumulator_poly)
+    # commit quotient polynomial
+    proof["t"] = {"commitment": kzg.commit(t.to_coeffs())}
+
+    # create zeta (ζ) from verifier
+    zeta = random_fp_seeded("zeta")
+
+    # # =============================================================================
+    # #
+    # # Verify locally before creating commitments for verifier everything at zeta (ζ)
+    # #
+
+    # # verify fz, gz, L1, tz at zeta
+    # assert fz.to_coeffs()(zeta) == (
+    #     xsp.to_coeffs()(zeta) + gamma
+    # ) * accumulator_poly.to_coeffs()(zeta), "fz != (f(x) + gamma) * Z(x)"
+
+    # accumulator_shift_zeta = eval_poly(accumulator_poly, [zeta * ROOTS[1]])[0]
+    # assert gz.to_coeffs()(zeta) == (
+    #     ysp.to_coeffs()(zeta) + gamma
+    # ) * accumulator_shift_zeta , "gz != (g(x) + gamma) * Z(xω)"
+
+    # assert (fz.to_coeffs()(zeta) - gz.to_coeffs()(zeta)) * alpha + (
+    #     L_1_ext.to_coeffs()(zeta)
+    #     * (accumulator_poly.to_coeffs()(zeta) - ONE.to_coeffs()(zeta))
+    # ) * alpha**2 == tz.to_coeffs()(
+    #     zeta
+    # ), "tz != α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))"
+
+    # # verify tz and t at zeta
+    # assert tz.to_coeffs()(zeta) == t.to_coeffs()(zeta) * ZH_coeffs(zeta), "tz != t * ZH"
+    # #
+    # # =============================================================================
+
+    # Create proof for f, g, accumulator_poly, t at zeta
+    #
+    # This is similar to Round 4 and 5 of Plonk. We are doing unoptimized version of those round
+    # and have multiple openings for each polynomial.
+    # This can be optimized by using batch opening with linear combination of polynomials using new challenge Nu (ν)
+    proof["f"]["proof"], proof["f"]["zeta_value"] = kzg.open(xsp.to_coeffs(), zeta)
+    proof["g"]["proof"], proof["g"]["zeta_value"] = kzg.open(ysp.to_coeffs(), zeta)
+    proof["t"]["proof"], proof["t"]["zeta_value"] = kzg.open(t.to_coeffs(), zeta)
+    proof["z"]["proof"], proof["z"]["zeta_value"] = kzg.open(
+        accumulator_poly.to_coeffs(), zeta
+    )
+    proof["z"]["shift_proof"], proof["z"]["shift_zeta_value"] = kzg.open(
+        accumulator_poly.to_coeffs(), zeta * ROOTS[1]
+    )
+
+    # verify if -
+    # t * ZH = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
+    # at zeta (ζ)
+    L1Zeta = L_1.to_coeffs()(zeta)
+    L1Constrainst = alpha**2 * (L1Zeta * (proof["z"]["zeta_value"] - Fp(1)))
+    TransitionConstraint = alpha * (
+        (proof["f"]["zeta_value"] + gamma) * proof["z"]["zeta_value"]
+        - (proof["g"]["zeta_value"] + gamma) * proof["z"]["shift_zeta_value"]
+    )
+
+    LHS = proof["t"]["zeta_value"] * ZH(zeta)
+    RHS = TransitionConstraint + L1Constrainst
+    assert LHS == RHS
 
 
 if __name__ == "__main__":
     # setup with degree 100 (all polynomial must be of degree < 100)
     _, CRS = generate_CRS(100)
-    prove()
+
+    # create KZG object
+    kzg = KZG(CRS)
+
+    print("xs", xs)
+    print("ys", ys)
+
+    # create proof
+    proof = prove(kzg)
