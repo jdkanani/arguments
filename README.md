@@ -23,3 +23,9 @@ To test kate (KZG) commitment
 ```bash
 $ poetry run python -m arguments.pcs.kzg
 ```
+
+To create simple multiset argument proof and verify it
+
+```bash
+$ poetry run python -m arguments.multiset
+```
