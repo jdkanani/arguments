@@ -56,9 +56,7 @@ def prove(kzg):
     ZH_ext = PolyEvalRep3.from_coeffs(ZH)
     ZH_coeffs = ZH_ext.to_coeffs()
 
-    # get gamma (γ) from verifier after commiting to xsp and ysp
-    gamma = random_fp_seeded("gamma")
-    gamma_poly = PolyEvalRep3.from_coeffs(Poly([gamma]))
+    
     L_1 = PolyEvalRep(ROOTS, [Fp(1)] + [Fp(0) for i in range(len(ROOTS) - 1)])
     L_1_ext = PolyEvalRep3.from_coeffs(L_1.to_coeffs())
     ONE = PolyEvalRep3.from_coeffs(Poly([Fp(1)]))
@@ -66,6 +64,15 @@ def prove(kzg):
     # create polynomial from points
     xsp = PolyEvalRep(ROOTS, xs)
     ysp = PolyEvalRep(ROOTS, ys)
+
+    # commit xsp and ysp as f and g
+    proof["f"] = {"commitment": kzg.commit(xsp.to_coeffs())}
+    proof["g"] = {"commitment": kzg.commit(ysp.to_coeffs())}
+
+    # get gamma (γ) from verifier after commiting to xsp and ysp
+    transcript = [proof["f"]["commitment"], proof["g"]["commitment"]]
+    gamma = random_fp_seeded(str(transcript))
+    gamma_poly = PolyEvalRep3.from_coeffs(Poly([gamma]))
 
     accumulator_poly_eval = [Fp(1)]
     accumulator_poly_eval += [
@@ -84,9 +91,7 @@ def prove(kzg):
     xsp_ext = PolyEvalRep3.from_coeffs(xsp.to_coeffs())
     ysp_ext = PolyEvalRep3.from_coeffs(ysp.to_coeffs())
 
-    # commit xsp (f), ysp (g), accumulator_poly (z)
-    proof["f"] = {"commitment": kzg.commit(xsp.to_coeffs())}
-    proof["g"] = {"commitment": kzg.commit(ysp.to_coeffs())}
+    # commit accumulator_poly (z)
     proof["z"] = {"commitment": kzg.commit(accumulator_poly.to_coeffs())}
 
     # This is where we need larger domain for product as we are multiplying f and Z (accumulator_poly)
@@ -103,9 +108,11 @@ def prove(kzg):
     #
     # We will create linear combination of these two constraints
 
-    # create random for linear combination of constraints
-    alpha = random_fp_seeded("alpha")
+    # get random α from verifier using transcript
+    transcript += [proof["z"]["commitment"]]
+    alpha = random_fp_seeded(str(transcript))
 
+    # create random for linear combination of constraints
     # tz = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
     tz = ((fz - gz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha**2)
 
@@ -118,8 +125,9 @@ def prove(kzg):
     # commit quotient polynomial
     proof["t"] = {"commitment": kzg.commit(t.to_coeffs())}
 
-    # create zeta (ζ) from verifier
-    zeta = random_fp_seeded("zeta")
+    # create zeta (ζ) from verifier using transcript
+    transcript += [proof["t"]["commitment"]]
+    zeta = random_fp_seeded(str(transcript))
 
     # # =============================================================================
     # #
@@ -176,9 +184,15 @@ def verify(proof, kzg):
     omega = omega_base ** (2**32 // n)
     ROOTS = [omega**i for i in range(n)]
 
-    gamma = random_fp_seeded("gamma")
-    alpha = random_fp_seeded("alpha")
-    zeta = random_fp_seeded("zeta")
+    # get random γ from verifier using transcript
+    transcript = [proof["f"]["commitment"], proof["g"]["commitment"]]
+    gamma = random_fp_seeded(str(transcript))
+    # get random α from verifier using transcript
+    transcript += [proof["z"]["commitment"]]
+    alpha = random_fp_seeded(str(transcript))
+    # get random ζ from verifier using transcript
+    transcript += [proof["t"]["commitment"]]
+    zeta = random_fp_seeded(str(transcript))
 
     # verify all opening proofs at zeta
     print("Verifying all opening proofs at zeta")
