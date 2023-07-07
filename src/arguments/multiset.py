@@ -150,9 +150,13 @@ def prove(kzg):
 
     # Create proof for f, g, accumulator_poly, t at zeta
     #
-    # This is similar to Round 4 and 5 of Plonk. We are doing unoptimized version of those round
-    # and have multiple openings for each polynomial.
-    # This can be optimized by using batch opening with linear combination of polynomials using new challenge Nu (ν)
+    # This is similar to Round 4 and 5 of Plonk.
+    # We are doing unoptimized version of those round and have multiple openings for each polynomial.
+    # This can be optimized by using batch opening with linear combination of polynomials using new challenge Nu (ν).
+
+    # Note that kzg.open(poly, a) returns proof and value of polynomial (b) at point a
+
+    # open f, g, t, accumulator_poly and store proof and value at zeta
     proof["f"]["proof"], proof["f"]["zeta_value"] = kzg.open(xsp.to_coeffs(), zeta)
     proof["g"]["proof"], proof["g"]["zeta_value"] = kzg.open(ysp.to_coeffs(), zeta)
     proof["t"]["proof"], proof["t"]["zeta_value"] = kzg.open(t.to_coeffs(), zeta)
@@ -164,18 +168,21 @@ def prove(kzg):
     )
 
     # verify if -
-    # t * ZH = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
+    # t * ZH == α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
     # at zeta (ζ)
-    L1Zeta = L_1.to_coeffs()(zeta)
-    L1Constrainst = alpha**2 * (L1Zeta * (proof["z"]["zeta_value"] - Fp(1)))
+    L1Constrainst = alpha**2 * (
+        # L1(x) * (Z(x) - 1)
+        L_1.to_coeffs()(zeta)
+        * (proof["z"]["zeta_value"] - Fp(1))
+    )
     TransitionConstraint = alpha * (
+        # (f(x) + gamma) * Z(x)
         (proof["f"]["zeta_value"] + gamma) * proof["z"]["zeta_value"]
+        # (g(x) + gamma) * Z(xω)
         - (proof["g"]["zeta_value"] + gamma) * proof["z"]["shift_zeta_value"]
     )
-
-    LHS = proof["t"]["zeta_value"] * ZH(zeta)
-    RHS = TransitionConstraint + L1Constrainst
-    assert LHS == RHS
+    # t * ZH == α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xω)) + α^2 (L1(x) * (Z(x) - 1)))
+    assert proof["t"]["zeta_value"] * ZH(zeta) == TransitionConstraint + L1Constrainst
 
 
 if __name__ == "__main__":
