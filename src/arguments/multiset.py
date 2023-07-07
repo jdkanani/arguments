@@ -89,14 +89,22 @@ def prove():
     # (g(x) + gamma) * Z(xw)
     qz = (ysp_ext + gamma_poly) * accumulator_poly_shift
 
-    # create linear combination of constraint polynomials
+    # There are two constraints
+    # 1. f(x) * Z(x) = g(x) * Z(xw) 
+    #       equivalent to 
+    #   f(x) * Z(x) - g(x) * Z(xw) = 0
+    # 2. L1(x) * (Z(x) - 1) = 0
+    # 
+    # We will create linear combination of these two constraints
+
+    # create random for linear combination of constraints
     alpha = random_fp_seeded("alpha")
 
     # tz = α * ((f(x) + gamma) * Z(x) - (g(x) + gamma) * Z(xw)) + α^2 (L1(x) * (Z(x) - 1)))
     tz = ((fz - qz) * alpha) + (L_1_ext * (accumulator_poly - ONE) * alpha**2)
 
-    # Now, we want to check if tz is zero at all points in roots of unity (all of omegas)
-    # It means that it must be divisible by vanishing polynomial
+    # Now, we want to check if tz is zero at all points in roots of unity (all of omegas),
+    # it must be divisible by vanishing polynomial
     # q = tz / ZH
     q = PolyEvalRep2.divideWithCoset(tz.to_coeffs(), ZH_coeffs)
 
