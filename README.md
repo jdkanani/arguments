@@ -30,6 +30,12 @@ To create simple multiset argument proof and verify it
 $ poetry run python -m arguments.multiset
 ```
 
+To create simple permutation argument proof and verify it
+
+```bash
+$ poetry run python -m arguments.permutation
+```
+
 ### Credits and references
 
 This repository heavily uses library and methods from https://github.com/ETHorHIL/Plonk_Py
