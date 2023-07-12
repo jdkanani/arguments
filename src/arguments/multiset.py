@@ -17,12 +17,13 @@ import random
 # closest power of 2 for length of list of points
 n = 8
 
-# In multiset argument, prover will try to convience verifier that two list of points are equal
-# To do that, we will be using grand product check, xs1 * xs2 * ... = ys1 * ys2 * ...
-# With random from verifier, (xs1 + γ) * (xs2 + γ) * ... = (ys1 + γ) * (ys2 + γ) * ...
-#
-# 1 = (xs1 + γ) * (xs2 + γ) * ... / (ys1 + γ) * (ys2 + γ) * ...
-#
+"""
+In multiset argument, prover will try to convience verifier that two list of points are equal
+To do that, we will be using grand product check, xs1 * xs2 * ... = ys1 * ys2 * ...
+With random from verifier, (xs1 + γ) * (xs2 + γ) * ... = (ys1 + γ) * (ys2 + γ) * ...
+
+1 = (xs1 + γ) * (xs2 + γ) * ... / (ys1 + γ) * (ys2 + γ) * ...
+"""
 
 xs = [Fp(i) * Fp(i) for i in range(1, n + 1)]
 ys = xs.copy()

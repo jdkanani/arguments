@@ -17,29 +17,30 @@ import random
 # closest power of 2 for length of list of points
 n = 8
 
-# In permutation argument, prover will try to convience verifier that two list of points are equal
-# with given permutation function (σ).
-# σ : [n] → [n]
-# g = σ(f)
+"""
+    In permutation argument, prover will try to convience verifier that two list of points are equal
+    with given permutation function (σ).
+    σ : [n] → [n]
+    g = σ(f)
 
 
-# f = [33, 55, 11, 77, 88, 66, 44, 22]
-# g = [11, 22, 33, 44, 55, 66, 77, 88]
-#
-# i = [0, 1, 2, 3, 4, 5, 6, 7]
-# σ = lambda i: [2, 7, 0, 6, 1, 5, 3, 4][i]
-#
-# g = [f[σ(i)] for i in range(n)]
-#
-#
-# To do that, we will be using grand product check with index,
-# (xs1 + i1) * (xs2 + i2) * ... = (ys1 + σ(i1)) * (ys2 + σ(i2)) * ...
-#
-# With random from verifier,
-# (xs1 + β * i1 + γ) * (xs2 + β * i2 + γ) * ... = (ys1 + β * σ(i1) + γ) * (ys2 + β * σ(i2) + γ) * ...
-#
-# 1 = (xs1 + β * i1 + γ) * (xs2 + β * i2 + γ) * ... / * (ys1 + β * σ(i1) + γ) * (ys2 + β * σ(i2) + γ) * ...
-#
+    f = [33, 55, 11, 77, 88, 66, 44, 22]
+    g = [11, 22, 33, 44, 55, 66, 77, 88]
+
+    i = [0, 1, 2, 3, 4, 5, 6, 7]
+    σ = lambda i: [2, 7, 0, 6, 1, 5, 3, 4][i]
+
+    g = [f[σ(i)] for i in range(n)]
+
+
+    To do that, we will be using grand product check with index,
+    (xs1 + i1) * (xs2 + i2) * ... = (ys1 + σ(i1)) * (ys2 + σ(i2)) * ...
+
+    With random from verifier,
+    (xs1 + β * i1 + γ) * (xs2 + β * i2 + γ) * ... = (ys1 + β * σ(i1) + γ) * (ys2 + β * σ(i2) + γ) * ...
+
+    1 = (xs1 + β * i1 + γ) * (xs2 + β * i2 + γ) * ... / * (ys1 + β * σ(i1) + γ) * (ys2 + β * σ(i2) + γ) * ...
+"""
 
 
 xs = [Fp(i) * Fp(i) for i in range(1, n + 1)]
